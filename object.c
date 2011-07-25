@@ -88,7 +88,7 @@ void cs_object_print(cs_json_obj *obj) {
 			printf("\"%s\"", (char *)obj->data);
 			break;
 		case TYPE_NUMBER:
-			printf("%g", *(double *)obj->data);
+			printf("%.0f", *(double *)obj->data);
 			break;
 		case TYPE_OBJECT:
 			printf("{");
