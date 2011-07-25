@@ -1,0 +1,3 @@
+[submodule "c_data_structs"]
+	path = c_data_structs
+	url = git://github.com/cstavish/c_data_structs.git

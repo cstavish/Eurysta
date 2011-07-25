@@ -1,0 +1,20 @@
+Eurysta is _not_ ready for production code. It's getting there, but use caution!
+
+TODO:
+
+1. Error reporting
+2. Usable post-parse object interface (essentially a few wrapper functions)
+3. DOCUMENTATION and more insightful comments
+
+If you spot an issue, egregious or slight, send a pull request!
+
+Re: benchmarking:
+
+More steps need to be taken to ensure code-correctness before optimization and
+benchmarking are considered. Eurysta is by no means _slow_, but perhaps some
+areas (such as memory allocation) have optimization potential. We'll see.
+
+Peace & love,
+
+Coleman
+
