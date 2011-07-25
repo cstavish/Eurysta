@@ -46,7 +46,7 @@
  *
  */
 
-static void inline putback_(cs_json_parser *p, char c) {
+static inline void putback_(cs_json_parser *p, char c) {
 	if (p->whence == SRC_STREAM) {
 		ungetc(c, p->source.stream);
 	}
@@ -55,7 +55,7 @@ static void inline putback_(cs_json_parser *p, char c) {
 	}
 }
 
-static char inline next_(cs_json_parser *p) {
+static inline char next_(cs_json_parser *p) {
 	int ch = 0;
 	if (p->whence == SRC_STREAM) {
 		ch = fgetc(p->source.stream);
