@@ -343,17 +343,16 @@ fail:
 }
 
 cs_json_obj *cs_json_parse(cs_json_parser *p) {
-	cs_json_obj *obj = NULL;
 	switch (get_tok_(p)) {
-		case TOK_LCURLY:  obj = object_(p); break;
-		case TOK_LSQUARE: obj = array_(p); break;
-		case TOK_STRING:  obj = string_(p); break;
-		case TOK_NUMBER:  obj = number_(p); break;
-		case TOK_TRUE:    obj = cs_bool_create(1); break;
-		case TOK_FALSE:   obj = cs_bool_create(0); break;
+		case TOK_LCURLY:  return object_(p);
+		case TOK_LSQUARE: return array_(p);
+		case TOK_STRING:  return string_(p);
+		case TOK_NUMBER:  return number_(p);
+		case TOK_TRUE:    return cs_bool_create(1);
+		case TOK_FALSE:   return cs_bool_create(0);
 		case TOK_NULL:    return &null_;
 	}
-	return obj;
+	return NULL;
 }
 
 cs_json_parser *cs_parser_create_fn(const char *file) {
