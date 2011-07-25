@@ -46,7 +46,7 @@
  *
  */
 
-static void putback_(cs_json_parser *p, char c) {
+static void inline putback_(cs_json_parser *p, char c) {
 	if (p->whence == SRC_STREAM) {
 		ungetc(c, p->source.stream);
 	}
@@ -55,7 +55,7 @@ static void putback_(cs_json_parser *p, char c) {
 	}
 }
 
-static char next_(cs_json_parser *p) {
+static char inline next_(cs_json_parser *p) {
 	int ch = 0;
 	if (p->whence == SRC_STREAM) {
 		ch = fgetc(p->source.stream);
@@ -70,7 +70,7 @@ static char next_(cs_json_parser *p) {
 	return (char)ch;
 }
 
-static uint8_t match_str_(cs_json_parser *p, const char *s, uint32_t l) {
+static inline uint8_t match_str_(cs_json_parser *p, const char *s, uint32_t l) {
 	char c = '\0', *n = (char *)s;
 	while (*n && (c = next_(p)) && c == *n++)
 		;
@@ -230,7 +230,7 @@ static cs_json_obj *number_(cs_json_parser *p) {
 	char buffer[256];
 	char c = '\0';
 	uint32_t len = 0;
-	// "embedded" state machine
+	// "embedded" state machine makes a comeback, albeit in a state of lesser grandeur
 	uint8_t in_expo = 0, in_frac = 0;
 	
 	while (len < sizeof(buffer) - 1 && (c = next_(p))) {
