@@ -54,3 +54,5 @@ cs_json_obj *cs_bool_create(uint8_t val);
 cs_json_obj *cs_string_create(char *val, uint8_t assign);
 
 cs_json_obj *cs_number_create(double val);
+
+void cs_json_obj_destroy(cs_json_obj *o);

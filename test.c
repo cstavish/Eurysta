@@ -14,8 +14,10 @@ int main(int argc, const char **argv) {
 
     cs_json_obj *root = cs_json_parse(parser);
 
-    if (root)
+    if (root) {
         cs_object_print(root);
+        cs_json_obj_destroy(root);
+    }
 
     cs_parser_destroy(parser);
 }

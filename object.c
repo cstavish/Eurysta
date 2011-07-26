@@ -54,7 +54,7 @@ static void spec_destructor_(const char *k, void *v) {
     free(obj);
 }
 
-void generic_destructor_(void *v) {
+static void generic_destructor_(void *v) {
     spec_destructor_(NULL, v);
 }
 
@@ -80,6 +80,10 @@ static void print_array_(cs_dll *list) {
         else if (list->size - i == 1)
             printf(" ");
     }
+}
+
+void cs_json_obj_destroy(cs_json_obj *o) {
+    generic_destructor_(o);
 }
 
 void cs_object_print(cs_json_obj *obj) {

@@ -40,8 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 2. Solid interface (essentially a few wrapper functions)
  * 3. DOCUMENTATION and more insightful comments
  *
- * - Peace and love,
- *      Coleman
+ * - Coleman
  *
  */
 
@@ -284,7 +283,6 @@ win:
 }
 
 cs_json_obj *cs_json_parse(cs_json_parser *p);
-extern void *(generic_destructor_)(cs_json_obj *);
 
 static cs_json_obj *array_(cs_json_parser *p) {
     cs_json_obj *array = cs_array_create();
@@ -308,7 +306,7 @@ static cs_json_obj *array_(cs_json_parser *p) {
         return array;
     
 fail:
-    generic_destructor_(array);
+    cs_json_obj_destroy(array);
     return NULL;
 }
 
@@ -348,7 +346,7 @@ static cs_json_obj *object_(cs_json_parser *p) {
         return object;
 
 fail:
-    generic_destructor_(object);
+    cs_json_obj_destroy(object);
     return NULL;
 }
 
