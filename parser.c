@@ -67,7 +67,7 @@ static inline char next_(cs_json_parser *p) {
             return '\0';
     }
     else if (p->whence == SRC_STRING || p->whence == SRC_MMAP) {
-        if (p->position < p->input_size || p->source.string[p->position] == '\0')
+        if (p->position >= p->input_size || p->source.string[p->position] == '\0')
             return '\0';
         ch = p->source.string[p->position++];
     }
