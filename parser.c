@@ -31,7 +31,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
-#include <math.h>
 #include "eurysta.h"
 
 /*
@@ -133,11 +132,11 @@ static char *string_raw_(cs_json_parser *p) {
     // "embedded" state machine
     uint32_t len = 0;
     uint8_t in_esc = 0, in_uni = 0, uni_len = 0;
-    uint16_t uni_code = 0;
+    uint32_t uni_code = 0;
     char c = '\0';
     while ((c = next_(p))) {
     
-        if (len > buf_size - 2) {
+        if (len > buf_size - 4) {
             char *new = realloc(buffer, buf_size += 4096);
             if (new == NULL) {
                 goto fail;
@@ -177,17 +176,28 @@ static char *string_raw_(cs_json_parser *p) {
                 goto fail;
             }
             
-            uni_code += pow(16, 3 - uni_len) * half;
-            
+            static uint16_t pow_table[] = { 0x1000, 0x0100, 0x10, 0x01 };
+            uni_code += pow_table[uni_len] * half;
+
+            // UTF-8 <3
             if (++uni_len == 4) {
-                if (uni_code < 0x80) {
+                if (uni_code <= 0x7F) {
                     buffer[len++] = (char)uni_code;
                 }
-                else {
+                else if (uni_code <= 0x07FF) {
                     // 0b110xxxxx 0b10xxxxxx
-                    // UTF-8 <3
-                    buffer[len++] = 0xC0 | (uni_code & 0x1F00) >> 8;
+                    buffer[len++] = 0xC0 | ((uni_code & 0x07C0) >> 6);
                     buffer[len++] = 0x80 | (uni_code & 0x3F);
+                }
+                else if (uni_code <= 0xFFFF) {
+                    // 0b1110xxxx 0b10xxxxxx 0b10xxxxxx
+                    buffer[len++] = 0xE0 | ((uni_code & 0xF000) >> 12);
+                    buffer[len++] = 0x80 | ((uni_code & 0x0FC0) >> 6);
+                    buffer[len++] = 0x80 | (uni_code & 0x3F);
+                }
+                else {
+                    // invalid escape sequence
+                    goto fail;
                 }
                 in_uni = in_esc = uni_len = uni_code = 0;
             }
