@@ -10,14 +10,14 @@ int main(int argc, const char **argv) {
     if (argc > 1 && strcmp(argv[1], "-") == 0)
         parser = cs_parser_create_f(stdin);
     else
-        parser = cs_parser_create_fn("twitter.json");
-
+        parser = cs_parser_create_fmm("twitter.json"); // parser = cs_parser_create_fn("twitter.json");
+    
     cs_json_obj *root = cs_json_parse(parser);
 
     if (root) {
         cs_object_print(root);
         cs_json_obj_destroy(root);
     }
-
+    
     cs_parser_destroy(parser);
 }

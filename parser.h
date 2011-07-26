@@ -25,10 +25,12 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <sys/types.h>
 
 enum src_type {
     SRC_STREAM,
-    SRC_STRING
+    SRC_STRING,
+    SRC_MMAP
 };
 
 enum err_type {
@@ -66,6 +68,9 @@ struct cs_json_parser {
     src_t whence;
     err_t error;
     tok_t current;
+    // for mmap
+    int file_des;
+    size_t input_size;
 };
 
 typedef struct cs_json_parser cs_json_parser;
@@ -73,6 +78,8 @@ typedef struct cs_json_parser cs_json_parser;
 const char *strtype(enum obj_type t);
 
 cs_json_parser *cs_parser_create_fn(const char *file);
+
+cs_json_parser *cs_parser_create_fmm(const char *file);
 
 cs_json_parser *cs_parser_create_f(FILE *source);
 

@@ -31,6 +31,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <limits.h>
 #include "eurysta.h"
 
 /*
@@ -48,8 +53,9 @@ static inline void putback_(cs_json_parser *p, char c) {
     if (p->whence == SRC_STREAM) {
         ungetc(c, p->source.stream);
     }
-    else if (p->whence == SRC_STRING) {
-        p->position--;
+    else if (p->whence == SRC_STRING || p->whence == SRC_MMAP) {
+        if (p->position > 0)
+            p->position--;
     }
 }
 
@@ -60,8 +66,8 @@ static inline char next_(cs_json_parser *p) {
         if (ch == EOF)
             return '\0';
     }
-    else if (p->whence == SRC_STRING) {
-        if (p->source.string[p->position] == '\0')
+    else if (p->whence == SRC_STRING || p->whence == SRC_MMAP) {
+        if (p->position < p->input_size || p->source.string[p->position] == '\0')
             return '\0';
         ch = p->source.string[p->position++];
     }
@@ -255,7 +261,7 @@ static cs_json_obj *number_(cs_json_parser *p) {
                 in_expo = 1;
                 break;
             case '+': case '-':
-                if (len > 0 && tolower(buffer[len - 1]) != 'e')
+                if (len > 0 && (buffer[len - 1] != 'e' && buffer[len - 1] != 'E'))
                     goto fail;
                 break;
             default:
@@ -368,6 +374,29 @@ cs_json_parser *cs_parser_create_fn(const char *file) {
     return cs_parser_create_f(f);
 }
 
+cs_json_parser *cs_parser_create_fmm(const char *file) {
+    cs_json_parser *p = cs_parser_create_s(NULL);
+    if (p == NULL)
+        return NULL;
+    
+    int fd = -1;
+    if ((fd = open(file, O_RDWR)) > 0) {
+        struct stat s;
+        if (fstat(fd, &s) != -1) {
+            if ((p->source.string = mmap(NULL, s.st_size, PROT_READ, MAP_SHARED, fd, 0)) != MAP_FAILED) {
+                p->file_des = fd;
+                p->input_size = s.st_size;
+                p->whence = SRC_MMAP;
+                return p;
+            }
+        }
+    }
+    
+    // err
+    free(p);
+    return NULL;
+}
+
 cs_json_parser *cs_parser_create_f(FILE *source) {
     if (source == NULL)
         return NULL;
@@ -392,14 +421,20 @@ cs_json_parser *cs_parser_create_s(const char *source) {
     p->whence = SRC_STRING;
     p->source.string = source;
     p->position = 0;
+    p->input_size = UINT_MAX;
     p->error = ERR_NONE;
     
     return p;
 }
 
 void cs_parser_destroy(cs_json_parser *p) {
-    if (p->whence == SRC_STREAM && p->source.stream != stdin)
+    if (p->whence == SRC_STREAM && p->source.stream != stdin) {
         fclose(p->source.stream);
+    }
+    else if (p->whence == SRC_MMAP) {
+        munmap((void *)p->source.string, p->input_size);
+        close(p->file_des);
+    }
     free(p);
 }
 
