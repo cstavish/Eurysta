@@ -95,12 +95,13 @@ static inline uint8_t my_isspace_(char c) {
 }
 
 static tok_t get_tok_(cs_json_parser *p) {
-    int ch = 0;
+    char ch = '\0';
+
     // skip whitespace
     while (my_isspace_(ch = next_(p)))
         ;
-    if (ch == 0) {
-        // cleanup
+
+    if (ch == '\0') {
         return p->current = TOK_END;
     }
     
@@ -131,9 +132,6 @@ static tok_t get_tok_(cs_json_parser *p) {
         case 'f':
             if (match_str_(p, "alse", 4))
                 return p->current = TOK_FALSE;
-            break;
-            
-        default:
             break;
     }
     return TOK_END;
@@ -171,7 +169,7 @@ static char *string_raw_(cs_json_parser *p) {
                 case 't':  buffer[len++] = '\t'; break;
                 case '\\': buffer[len++] = '\\'; break;
                 case '/':  buffer[len++] = '/'; break;
-                case '"':  buffer[len++] = '/'; break;
+                case '"':  buffer[len++] = '"'; break;
                 case 'u': in_uni = 1; break;
                 default: goto fail; // invalid escape char
             }
@@ -293,15 +291,13 @@ static cs_json_obj *number_(cs_json_parser *p) {
     }
 
 fail:
-    // set error
     return NULL;
 
 win:
     putback_(p, c);
     buffer[len] = '\0';
-    char *end = NULL;
     errno = 0;
-    double val = strtod(buffer, &end);
+    double val = strtod(buffer, NULL);
     if (errno == ERANGE || errno == EINVAL)
         return &null_;
     return cs_number_create(val);
@@ -341,18 +337,19 @@ static cs_json_obj *object_(cs_json_parser *p) {
         return NULL;
         
     do {
+        // try to match first double quote
         if (get_tok_(p) != TOK_STRING) {
             if (p->current == TOK_RCURLY)
                 return object;
             goto fail;
         }
-        
+
         char *key = string_raw_(p);
         if (key == NULL) {
             goto fail;
         }
         
-        // couldn't match key-val separator
+        // try to match key-value separator :
         if (get_tok_(p) != TOK_COLON) {
             goto fail;
         }
@@ -367,6 +364,7 @@ static cs_json_obj *object_(cs_json_parser *p) {
         
     } while (get_tok_(p) == TOK_COMMA);
     
+    // match closing }
     if (p->current == TOK_RCURLY)
         return object;
 
@@ -407,6 +405,9 @@ cs_json_parser *cs_parser_create_fmm(const char *file) {
                 p->input_size = s.st_size;
                 p->whence = SRC_MMAP;
                 return p;
+            }
+            else {
+                close(fd);
             }
         }
     }
