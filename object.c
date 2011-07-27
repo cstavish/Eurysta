@@ -118,7 +118,7 @@ cs_json_obj *cs_object_create(void) {
         return NULL;
         
     obj->type = TYPE_OBJECT;
-    if ((obj->data = cs_hash_create()) == NULL) {
+    if ((obj->data = cs_hash_create_opt(32, 0.75f, 0.25f)) == NULL) {
         free(obj);
         return NULL;
     }
