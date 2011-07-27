@@ -37,36 +37,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <limits.h>
 #include "eurysta.h"
 
-/*
- * TODO:
- *
- * 1. Error reporting
- * 2. Solid interface (essentially a few wrapper functions)
- * 3. DOCUMENTATION and more insightful comments
- *
- * - Coleman
- *
- */
-
 static inline void putback_(cs_json_parser *p, char c) {
-    if (p->whence == SRC_STREAM) {
+    if (p->whence == SRC_STREAM)
         ungetc(c, p->source.stream);
-    }
-    else if (p->whence == SRC_STRING || p->whence == SRC_MMAP) {
-        if (p->position > 0)
-            p->position--;
-    }
+    if (p->position > 0)
+        p->position--;
 }
 
 static inline char next_(cs_json_parser *p) {
     int ch = 0;
     if (p->whence == SRC_STREAM) {
+        p->position++;
         ch = fgetc(p->source.stream);
         if (ch == EOF)
             return '\0';
     }
-    else if (p->whence == SRC_STRING || p->whence == SRC_MMAP) {
-        if (p->position >= p->input_size || p->source.string[p->position] == '\0')
+    // SRC_STRING or SRC_MMAP
+    else {
+        if (p->position >= p->input_size)
             return '\0';
         ch = p->source.string[p->position++];
     }
@@ -80,6 +68,7 @@ static inline uint8_t match_str_(cs_json_parser *p, const char *s, uint32_t l) {
     return n - l == s;
 }
 
+// inline isdigit/isspace > dynamically linked library isdigit/isspace
 static inline uint8_t my_isdigit_(char c) {
     return c >= '0' && c <= '9';
 }
@@ -101,9 +90,8 @@ static tok_t get_tok_(cs_json_parser *p) {
     while (my_isspace_(ch = next_(p)))
         ;
 
-    if (ch == '\0') {
+    if (ch == '\0')
         return p->current = TOK_END;
-    }
     
     switch (ch) {
         case '[': case ']': case ':':
@@ -118,17 +106,20 @@ static tok_t get_tok_(cs_json_parser *p) {
 
         case '"':
             return p->current = TOK_STRING;
-            
+        
+        // expect literal 'null'
         case 'n':
             if (match_str_(p, "ull", 3))
                 return p->current = TOK_NULL;
             break;
-            
+        
+        // expect literal 'true'
         case 't':
             if (match_str_(p, "rue", 3))
                 return p->current = TOK_TRUE;
             break;
-            
+        
+        // expect literal 'false'
         case 'f':
             if (match_str_(p, "alse", 4))
                 return p->current = TOK_FALSE;
@@ -138,7 +129,7 @@ static tok_t get_tok_(cs_json_parser *p) {
 }
 
 static char *string_raw_(cs_json_parser *p) {
-    uint32_t buf_size = 4096;
+    uint32_t buf_size = 2048;
     char *buffer = malloc(buf_size);
     if (buffer == NULL) {
         // err = insufficient mem
@@ -147,13 +138,18 @@ static char *string_raw_(cs_json_parser *p) {
     
     // "embedded" state machine
     uint32_t len = 0;
-    uint8_t in_esc = 0, in_uni = 0, uni_len = 0;
+    uint8_t in_esc = 0,  // in escape sequence initiated by \ (reverse solidus)
+            in_uni = 0,  // in Unicode escape sequence initiated by \u
+            uni_len = 0; // position in Unicode escape sequence (e.g. '\u5c5c'): 0-3 inclusive
+
     uint32_t uni_code = 0;
     char c = '\0';
     while ((c = next_(p))) {
     
+        // buffer must have at least 4 free bytes:
+        // potentially 3 for high Unicode sequences, and a terminating 0 byte
         if (len > buf_size - 4) {
-            char *new = realloc(buffer, buf_size += 4096);
+            char *new = realloc(buffer, buf_size += 2048);
             if (new == NULL) {
                 goto fail;
             }
@@ -162,6 +158,9 @@ static char *string_raw_(cs_json_parser *p) {
     
         if (in_esc && !in_uni) {
             switch (c) {
+                // note the start of a Unicode escape
+                case 'u': in_uni = 1; break;
+                // single character escape sequences
                 case 'b':  buffer[len++] = '\b'; break;
                 case 'f':  buffer[len++] = '\f'; break;
                 case 'n':  buffer[len++] = '\n'; break;
@@ -170,15 +169,16 @@ static char *string_raw_(cs_json_parser *p) {
                 case '\\': buffer[len++] = '\\'; break;
                 case '/':  buffer[len++] = '/'; break;
                 case '"':  buffer[len++] = '"'; break;
-                case 'u': in_uni = 1; break;
-                default: goto fail; // invalid escape char
+                // invalid escape
+                default: goto fail;
             }
             in_esc = 0;
         }
         else if (in_uni) {
+            // a character in [0-9A-Fa-f] must be converted to a 4 bit integer
             uint8_t half = 0;
             if (my_isdigit_(c)) {
-                half = c - '0';
+                half = c - '0'; // 0-9
             }
             else if (c >= 'A' && c <= 'F') {
                 half = c - 55; // 10-15
@@ -204,7 +204,8 @@ static char *string_raw_(cs_json_parser *p) {
                 }
                 // now we're going dual-byte
                 else if (uni_code <= 0x07FF) {                    
-                    // prefix with '110', then select the 5 most significant bits of the char code, shift them down and combine
+                    // prefix with '110', then select the 5 most significant bits
+                    //  of the char code, shift them down and combine
                     buffer[len++] = 0xC0 | ((uni_code & 0x07C0) >> 6);
                     
                     // prefix with '10', then select the 6 lowest bits of the char code and combine
@@ -214,11 +215,14 @@ static char *string_raw_(cs_json_parser *p) {
                 }
                 // and beyond...
                 else if (uni_code <= 0xFFFF) {
-                    // prefix with '1110', indicating a 3 byte sequence, select the 4 most significant bits of the char code, shift, etc.
+                    // prefix with '1110', indicating a 3 byte sequence, select the 4 most
+                    //  significant bits of the char code, shift, etc.
                     buffer[len++] = 0xE0 | ((uni_code & 0xF000) >> 12);
                     
-                    // same situation as with 2 byte sequences
+                    // prefix with '10', followed by the next 6 most significant bits of the char code
                     buffer[len++] = 0x80 | ((uni_code & 0x0FC0) >> 6);
+                    
+                    // same situation as with 2 byte sequences
                     buffer[len++] = 0x80 | (uni_code & 0x3F);
                     
                     // result = 0b1110xxxx 0b10xxxxxx 0b10xxxxxx
@@ -232,9 +236,11 @@ static char *string_raw_(cs_json_parser *p) {
                     // the unescaped final double quote--at last!
                     goto win;
                 case '\\':
+                    // note the start of an escape sequence
                     in_esc = 1;
                     break;
                 default:
+                    // character is nothing special, buffer it
                     buffer[len++] = c;
                     break;
             }
@@ -247,7 +253,10 @@ fail:
 
 win:
     buffer[len] = '\0';
-    char *final = strdup(buffer);
+    char *final = malloc(len);
+    if (final != NULL)
+        memcpy(final, buffer, len);
+
     free(buffer);
     return final;
 }
@@ -262,8 +271,10 @@ static cs_json_obj *number_(cs_json_parser *p) {
     char buffer[256];
     char c = '\0';
     uint32_t len = 0;
-    // "embedded" state machine makes a comeback, albeit in a state of lesser grandeur
-    uint8_t in_expo = 0, in_frac = 0;
+
+    // "embedded" state machine makes a comeback, albeit with less grandeur
+    uint8_t in_expo = 0, // in the optional exponent part of the number (following 'e' or 'E')
+            in_frac = 0; // in the optinal fraction part of the number (folowwing '.')
     
     while (len < sizeof(buffer) - 1 && (c = next_(p))) {
         switch (c) {
@@ -278,13 +289,16 @@ static cs_json_obj *number_(cs_json_parser *p) {
                 in_expo = 1;
                 break;
             case '+': case '-':
+                // '+' or '-' may appear within a number iff it immediately follows 'e' or 'E'
                 if (len > 0 && (buffer[len - 1] != 'e' && buffer[len - 1] != 'E'))
                     goto fail;
                 break;
             default:
+                // end of the number
                 if (!my_isdigit_(c)) {
+                    putback_(p, c);
                     goto win;
-                }   
+                }
                 break;
         }
         buffer[len++] = c;
@@ -294,7 +308,6 @@ fail:
     return NULL;
 
 win:
-    putback_(p, c);
     buffer[len] = '\0';
     errno = 0;
     double val = strtod(buffer, NULL);
@@ -302,8 +315,6 @@ win:
         return &null_;
     return cs_number_create(val);
 }
-
-cs_json_obj *cs_json_parse(cs_json_parser *p);
 
 static cs_json_obj *array_(cs_json_parser *p) {
     cs_json_obj *array = cs_array_create();
@@ -318,7 +329,7 @@ static cs_json_obj *array_(cs_json_parser *p) {
             goto fail;
         }
         
-        // success!
+        // success--appened object
         cs_dll_app((cs_dll *)(array->data), obj);
 
     } while (get_tok_(p) == TOK_COMMA);
@@ -460,7 +471,7 @@ void cs_parser_destroy(cs_json_parser *p) {
 
 const char *strtype(enum obj_type t) {
     static const char *names[] = { "object", "array", "string", "number", "boolean", "null" };
-    if (t >= 0 && t < sizeof(names))
+    if (t < sizeof(names))
         return names[t];
     return NULL;
 }
