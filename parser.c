@@ -29,7 +29,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -81,10 +80,24 @@ static inline uint8_t match_str_(cs_json_parser *p, const char *s, uint32_t l) {
     return n - l == s;
 }
 
+static inline uint8_t my_isdigit_(char c) {
+    return c >= '0' && c <= '9';
+}
+
+static inline uint8_t my_isspace_(char c) {
+    uint8_t s = 0;
+    switch (c) {
+        case  ' ': case '\n': case '\t':
+        case '\v': case '\f': case '\r':
+            s = 1;
+    }
+    return s;
+}
+
 static tok_t get_tok_(cs_json_parser *p) {
     int ch = 0;
     // skip whitespace
-    while (isspace(ch = next_(p)))
+    while (my_isspace_(ch = next_(p)))
         ;
     if (ch == 0) {
         // cleanup
@@ -166,7 +179,7 @@ static char *string_raw_(cs_json_parser *p) {
         }
         else if (in_uni) {
             uint8_t half = 0;
-            if (isdigit(c)) {
+            if (my_isdigit_(c)) {
                 half = c - '0';
             }
             else if (c >= 'A' && c <= 'F') {
@@ -181,28 +194,36 @@ static char *string_raw_(cs_json_parser *p) {
                 goto fail;
             }
             
-            static uint16_t pow_table[] = { 0x1000, 0x0100, 0x10, 0x01 };
-            uni_code += pow_table[uni_len] * half;
+            // pack in the latest 4 bits
+            uni_code <<= 4;
+            uni_code |= half;
 
             // UTF-8 <3
             if (++uni_len == 4) {
+                // just a 7-bit ASCII char, no big deal
                 if (uni_code <= 0x7F) {
                     buffer[len++] = (char)uni_code;
                 }
-                else if (uni_code <= 0x07FF) {
-                    // 0b110xxxxx 0b10xxxxxx
+                // now we're going dual-byte
+                else if (uni_code <= 0x07FF) {                    
+                    // prefix with '110', then select the 5 most significant bits of the char code, shift them down and combine
                     buffer[len++] = 0xC0 | ((uni_code & 0x07C0) >> 6);
+                    
+                    // prefix with '10', then select the 6 lowest bits of the char code and combine
                     buffer[len++] = 0x80 | (uni_code & 0x3F);
+                    
+                    // result = 0b110xxxxx 0b10xxxxxx, where x refers to a bit of the char code
                 }
+                // and beyond...
                 else if (uni_code <= 0xFFFF) {
-                    // 0b1110xxxx 0b10xxxxxx 0b10xxxxxx
+                    // prefix with '1110', indicating a 3 byte sequence, select the 4 most significant bits of the char code, shift, etc.
                     buffer[len++] = 0xE0 | ((uni_code & 0xF000) >> 12);
+                    
+                    // same situation as with 2 byte sequences
                     buffer[len++] = 0x80 | ((uni_code & 0x0FC0) >> 6);
                     buffer[len++] = 0x80 | (uni_code & 0x3F);
-                }
-                else {
-                    // invalid escape sequence
-                    goto fail;
+                    
+                    // result = 0b1110xxxx 0b10xxxxxx 0b10xxxxxx
                 }
                 in_uni = in_esc = uni_len = uni_code = 0;
             }
@@ -210,10 +231,8 @@ static char *string_raw_(cs_json_parser *p) {
         else {
             switch (c) {
                 case '"':
-                    if (!in_esc) // at last!
-                        goto win;
-                    in_esc = 0;
-                    break;
+                    // the unescaped final double quote--at last!
+                    goto win;
                 case '\\':
                     in_esc = 1;
                     break;
@@ -265,7 +284,7 @@ static cs_json_obj *number_(cs_json_parser *p) {
                     goto fail;
                 break;
             default:
-                if (!isdigit(c)) {
+                if (!my_isdigit_(c)) {
                     goto win;
                 }   
                 break;
