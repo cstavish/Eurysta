@@ -3,7 +3,7 @@
 #include "eurysta.h"
 
 // to compile:
-// gcc parser.c c_data_structs/cs_hash_tab.c c_data_structs/cs_linked_list.c object.c -std=c99 test.c -o test -O2
+// gcc parser.c c_data_structs/cs_hash_tab.c c_data_structs/cs_linked_list.c object.c -std=c99 test.c -o test -O3
 
 int main(int argc, const char **argv) {
     cs_json_parser *parser = NULL;
@@ -14,9 +14,12 @@ int main(int argc, const char **argv) {
     
     cs_json_obj *root = cs_json_parse(parser);
 
-    if (root) {
+    if (root != NULL) {
         cs_object_print(root);
         cs_json_obj_destroy(root);
+    }
+    else {
+        fprintf(stderr, "Error: %s\n", cs_strerror(parser->error));
     }
     
     cs_parser_destroy(parser);

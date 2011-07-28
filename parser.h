@@ -37,7 +37,15 @@ enum err_type {
     ERR_NONE,
     ERR_ILLEGAL,
     ERR_NO_MEM,
-    ERR_EXPECTED
+    ERR_EXPECTED_COLON,
+    ERR_EXPECTED_RCURLY,
+    ERR_EXPECTED_RSQUARE,
+    ERR_EXPECTED_KEY,
+    ERR_EXPECTED_VALUE,
+    ERR_EXPECTED_TRUE,
+    ERR_EXPECTED_FALSE,
+    ERR_EXPECTED_NULL,
+    ERR_INVALID_ESCAPE
 };
 
 enum tok_type {
@@ -56,7 +64,7 @@ enum tok_type {
 };
 
 typedef enum src_type src_t;
-typedef enum err_type   err_t;
+typedef enum err_type err_t;
 typedef enum tok_type tok_t;
 
 struct cs_json_parser {
@@ -75,8 +83,6 @@ struct cs_json_parser {
 
 typedef struct cs_json_parser cs_json_parser;
 
-const char *strtype(enum obj_type t);
-
 cs_json_parser *cs_parser_create_fn(const char *file);
 
 cs_json_parser *cs_parser_create_fmm(const char *file);
@@ -88,3 +94,6 @@ cs_json_parser *cs_parser_create_s(const char *source);
 void cs_parser_destroy(cs_json_parser *p);
 
 cs_json_obj *cs_json_parse(cs_json_parser *p);
+
+const char *cs_strtype(enum obj_type t);
+const char *cs_strerror(enum err_type e);

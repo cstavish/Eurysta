@@ -111,28 +111,37 @@ static tok_t get_tok_(cs_json_parser *p) {
         case 'n':
             if (match_str_(p, "ull", 3))
                 return p->current = TOK_NULL;
+
+            p->error = ERR_EXPECTED_NULL;
             break;
         
         // expect literal 'true'
         case 't':
             if (match_str_(p, "rue", 3))
                 return p->current = TOK_TRUE;
+
+            p->error = ERR_EXPECTED_TRUE;
             break;
         
         // expect literal 'false'
         case 'f':
             if (match_str_(p, "alse", 4))
                 return p->current = TOK_FALSE;
+
+            p->error = ERR_EXPECTED_FALSE;
             break;
+        
+        default:
+            p->error = ERR_ILLEGAL;
+            return TOK_END;
     }
-    return TOK_END;
 }
 
 static char *string_raw_(cs_json_parser *p) {
     uint32_t buf_size = 2048;
     char *buffer = malloc(buf_size);
     if (buffer == NULL) {
-        // err = insufficient mem
+        p->error = ERR_NO_MEM;
         goto fail;
     }
     
@@ -151,6 +160,7 @@ static char *string_raw_(cs_json_parser *p) {
         if (len > buf_size - 4) {
             char *new = realloc(buffer, buf_size += 2048);
             if (new == NULL) {
+                p->error = ERR_NO_MEM;
                 goto fail;
             }
             buffer = new;
@@ -169,8 +179,9 @@ static char *string_raw_(cs_json_parser *p) {
                 case '\\': buffer[len++] = '\\'; break;
                 case '/':  buffer[len++] = '/'; break;
                 case '"':  buffer[len++] = '"'; break;
-                // invalid escape
-                default: goto fail;
+                default:
+                    p->error = ERR_INVALID_ESCAPE;
+                    goto fail;
             }
             in_esc = 0;
         }
@@ -188,7 +199,7 @@ static char *string_raw_(cs_json_parser *p) {
             }
             else {
                 // not /[0-9A-Fa-f]/
-                // set err
+                p->error = ERR_INVALID_ESCAPE;
                 goto fail;
             }
             
@@ -305,6 +316,7 @@ static cs_json_obj *number_(cs_json_parser *p) {
     }
 
 fail:
+    p->error = ERR_ILLEGAL;
     return NULL;
 
 win:
@@ -326,6 +338,9 @@ static cs_json_obj *array_(cs_json_parser *p) {
         if (obj == NULL) {
             if (p->current == TOK_RSQUARE) // [ ]
                 return array;
+            // only set error if one was not assigned previously
+            if (p->error == ERR_NONE)
+                p->error = ERR_EXPECTED_VALUE;
             goto fail;
         }
         
@@ -336,6 +351,8 @@ static cs_json_obj *array_(cs_json_parser *p) {
     
     if (p->current == TOK_RSQUARE)
         return array;
+    
+    p->error = ERR_EXPECTED_RSQUARE;
     
 fail:
     cs_json_obj_destroy(array);
@@ -352,6 +369,7 @@ static cs_json_obj *object_(cs_json_parser *p) {
         if (get_tok_(p) != TOK_STRING) {
             if (p->current == TOK_RCURLY)
                 return object;
+            p->error = ERR_EXPECTED_KEY;
             goto fail;
         }
 
@@ -362,11 +380,14 @@ static cs_json_obj *object_(cs_json_parser *p) {
         
         // try to match key-value separator :
         if (get_tok_(p) != TOK_COLON) {
+            p->error = ERR_EXPECTED_COLON;
             goto fail;
         }
         
         cs_json_obj *val = cs_json_parse(p);
         if (val == NULL) {
+            if (p->error == ERR_NONE)
+                p->error = ERR_EXPECTED_VALUE;
             free(key);
             goto fail;
         }
@@ -378,6 +399,8 @@ static cs_json_obj *object_(cs_json_parser *p) {
     // match closing }
     if (p->current == TOK_RCURLY)
         return object;
+
+    p->error = ERR_EXPECTED_RCURLY;
 
 fail:
     cs_json_obj_destroy(object);
@@ -469,9 +492,29 @@ void cs_parser_destroy(cs_json_parser *p) {
     free(p);
 }
 
-const char *strtype(enum obj_type t) {
+const char *cs_strtype(enum obj_type t) {
     static const char *names[] = { "object", "array", "string", "number", "boolean", "null" };
     if (t < sizeof(names))
         return names[t];
+    return NULL;
+}
+
+const char *cs_strerror(enum err_type e) {
+    static const char *errors[] = {
+        "No error",
+        "Illegal",
+        "Could not allocate memory",
+        "Expected ':'",
+        "Expected '}'",
+        "Expected ']'",
+        "Expected key",
+        "Expected value",
+        "Expected 'true'",
+        "Expected 'false'",
+        "Expected 'null'",
+        "Invalid escape"
+    };
+    if (e < sizeof(errors))
+        return errors[e];
     return NULL;
 }
