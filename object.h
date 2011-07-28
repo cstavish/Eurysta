@@ -26,6 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <stdint.h>
+#include <stddef.h>
 
 enum obj_type {
     TYPE_OBJECT,
@@ -55,4 +56,21 @@ cs_json_obj *cs_string_create(char *val, uint8_t assign);
 
 cs_json_obj *cs_number_create(double val);
 
-void cs_json_obj_destroy(cs_json_obj *o);
+void cs_object_destroy(cs_json_obj *o);
+
+char *cs_string_get_val(cs_json_obj *string);
+uint8_t cs_string_set_val(cs_json_obj *string, const char *value);
+size_t cs_string_get_len(cs_json_obj *string);
+
+double cs_number_get_val(cs_json_obj *number, uint8_t *success);
+uint8_t cs_number_set_val(cs_json_obj *number, double value);
+
+uint8_t cs_bool_get_val(cs_json_obj *boolean, uint8_t *success);
+uint8_t cs_bool_set_val(cs_json_obj *boolean, uint8_t value);
+
+cs_json_obj *cs_object_get_val(cs_json_obj *object, const char *key);
+uint8_t cs_object_set_val(cs_json_obj *object, const char *key, cs_json_obj *value);
+
+cs_json_obj *cs_array_get_val(cs_json_obj *array, uint32_t index);
+uint8_t cs_array_set_val(cs_json_obj *array, uint32_t index, cs_json_obj *value);
+size_t cs_array_get_len(cs_json_obj *array);

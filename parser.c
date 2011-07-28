@@ -355,7 +355,7 @@ static cs_json_obj *array_(cs_json_parser *p) {
     p->error = ERR_EXPECTED_RSQUARE;
     
 fail:
-    cs_json_obj_destroy(array);
+    cs_object_destroy(array);
     return NULL;
 }
 
@@ -403,7 +403,7 @@ static cs_json_obj *object_(cs_json_parser *p) {
     p->error = ERR_EXPECTED_RCURLY;
 
 fail:
-    cs_json_obj_destroy(object);
+    cs_object_destroy(object);
     return NULL;
 }
 
