@@ -136,8 +136,10 @@ static tok_t get_tok_(cs_json_parser *p) {
     }
 }
 
+// this function a hotspot -- small improvements go a long way
 static char *string_(cs_json_parser *p) {
     uint32_t buf_size = 4096;
+    // start with a stack buffer, if more space is needed, a larger heap buffer will be allocated
     char buf[4096];
     char *buffer = buf;
     

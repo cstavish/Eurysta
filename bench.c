@@ -4,6 +4,7 @@
 
 // to compile:
 // gcc parser.c c_data_structs/cs_hash_tab.c c_data_structs/cs_linked_list.c object.c -std=c99 bench.c -o bench -O2
+// note: -O3 may result in worse performance because of suboptimal function inlining
 
 int main(int argc, const char **argv) {
     cs_json_parser *parser = cs_parser_create_fmm("twitter.json");
