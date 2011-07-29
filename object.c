@@ -122,7 +122,9 @@ cs_json_obj *cs_object_create(void) {
         free(obj);
         return NULL;
     }
+
     ((cs_hash_tab *)(obj->data))->cleanup = spec_destructor_;
+    ((cs_hash_tab *)(obj->data))->copy_keys = 0;
 
     return obj;
 }
