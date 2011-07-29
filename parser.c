@@ -40,8 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 static inline void putback_(cs_json_parser *p, char c) {
     if (p->whence == SRC_STREAM)
         ungetc(c, p->source.stream);
-    if (p->position > 0)
-        p->position--;
+    p->position--;
 }
 
 static inline char next_(cs_json_parser *p) {
@@ -89,9 +88,6 @@ static tok_t get_tok_(cs_json_parser *p) {
     // skip whitespace
     while (my_isspace_(ch = next_(p)))
         ;
-
-    if (ch == '\0')
-        return p->current = TOK_END;
     
     switch (ch) {
         case '[': case ']': case ':':
@@ -131,59 +127,43 @@ static tok_t get_tok_(cs_json_parser *p) {
             p->error = ERR_EXPECTED_FALSE;
             break;
         
+        case '\0':
+            return p->current = TOK_END;
+        
         default:
             p->error = ERR_ILLEGAL;
             return TOK_END;
     }
 }
 
-static char *string_raw_(cs_json_parser *p) {
-    uint32_t buf_size = 2048;
-    char *buffer = malloc(buf_size);
-    if (buffer == NULL) {
-        p->error = ERR_NO_MEM;
-        goto fail;
-    }
+static char *string_(cs_json_parser *p) {
+    uint32_t buf_size = 4096;
+    char buf[4096];
+    char *buffer = buf;
     
     // "embedded" state machine
     uint32_t len = 0;
-    uint8_t in_esc = 0,  // in escape sequence initiated by \ (reverse solidus)
-            in_uni = 0,  // in Unicode escape sequence initiated by \u
-            uni_len = 0; // position in Unicode escape sequence (e.g. '\u5c5c'): 0-3 inclusive
+    uint8_t in_esc  = 0,  // in escape sequence initiated by \ (reverse solidus)
+            in_uni  = 0,  // in Unicode escape sequence initiated by \u
+            uni_len = 0;  // position in Unicode escape sequence (e.g. '\u5c5c'): 0-3 inclusive
 
-    uint32_t uni_code = 0;
+    uint16_t uni_code = 0;
     char c = '\0';
     while ((c = next_(p))) {
-    
-        // buffer must have at least 4 free bytes:
-        // potentially 3 for high Unicode sequences, and a terminating 0 byte
-        if (len > buf_size - 4) {
-            char *new = realloc(buffer, buf_size += 2048);
-            if (new == NULL) {
-                p->error = ERR_NO_MEM;
-                goto fail;
-            }
-            buffer = new;
-        }
-    
-        if (in_esc && !in_uni) {
+        if (!in_esc && !in_uni) {
             switch (c) {
-                // note the start of a Unicode escape
-                case 'u': in_uni = 1; break;
-                // single character escape sequences
-                case 'b':  buffer[len++] = '\b'; break;
-                case 'f':  buffer[len++] = '\f'; break;
-                case 'n':  buffer[len++] = '\n'; break;
-                case 'r':  buffer[len++] = '\r'; break;
-                case 't':  buffer[len++] = '\t'; break;
-                case '\\': buffer[len++] = '\\'; break;
-                case '/':  buffer[len++] = '/'; break;
-                case '"':  buffer[len++] = '"'; break;
+                case '"':
+                    // the unescaped final double quote--at last!
+                    goto win;
+                case '\\':
+                    // note the start of an escape sequence
+                    in_esc = 1;
+                    break;
                 default:
-                    p->error = ERR_INVALID_ESCAPE;
-                    goto fail;
+                    // character is nothing special, buffer it
+                    buffer[len++] = c;
+                    break;
             }
-            in_esc = 0;
         }
         else if (in_uni) {
             // a character in [0-9A-Fa-f] must be converted to a 4 bit integer
@@ -225,7 +205,7 @@ static char *string_raw_(cs_json_parser *p) {
                     // result = 0b110xxxxx 0b10xxxxxx, where x refers to a bit of the char code
                 }
                 // and beyond...
-                else if (uni_code <= 0xFFFF) {
+                else {
                     // prefix with '1110', indicating a 3 byte sequence, select the 4 most
                     //  significant bits of the char code, shift, etc.
                     buffer[len++] = 0xE0 | ((uni_code & 0xF000) >> 12);
@@ -243,18 +223,37 @@ static char *string_raw_(cs_json_parser *p) {
         }
         else {
             switch (c) {
-                case '"':
-                    // the unescaped final double quote--at last!
-                    goto win;
-                case '\\':
-                    // note the start of an escape sequence
-                    in_esc = 1;
-                    break;
+                // note the start of a Unicode escape
+                case 'u': in_uni = 1; break;
+                // single character escape sequences
+                case 'n':  buffer[len++] = '\n'; break;
+                case '"':  buffer[len++] = '"'; break;
+                case '/':  buffer[len++] = '/'; break;
+                case 'b':  buffer[len++] = '\b'; break;
+                case 'f':  buffer[len++] = '\f'; break;
+                case 'r':  buffer[len++] = '\r'; break;
+                case 't':  buffer[len++] = '\t'; break;
+                case '\\': buffer[len++] = '\\'; break;
                 default:
-                    // character is nothing special, buffer it
-                    buffer[len++] = c;
-                    break;
+                    p->error = ERR_INVALID_ESCAPE;
+                    goto fail;
             }
+            in_esc = 0;
+        }
+        
+        // buffer must have at least 4 free bytes:
+        // potentially 3 for high Unicode sequences, and a terminating 0 byte
+        if (len > buf_size - 4) {
+            char *new = realloc((buf_size == sizeof(buf)) ? NULL : buffer, buf_size += 2048);
+            if (new == NULL) {
+                p->error = ERR_NO_MEM;
+                goto fail;
+            }
+            // buf_size equals sizeof(buf) iff buffer is on stack
+            if (buf_size == sizeof(buf)) {
+                memcpy(new, buffer, len);
+            }
+            buffer = new;
         }
     }
 
@@ -267,13 +266,10 @@ win:
     char *final = malloc(len);
     if (final != NULL)
         memcpy(final, buffer, len);
-
-    free(buffer);
+    // free buffer unless it's on the stack
+    if (buf_size != sizeof(buf))
+        free(buffer);
     return final;
-}
-
-static cs_json_obj *string_(cs_json_parser *p) {
-    return cs_string_create(string_raw_(p), 1);
 }
 
 extern cs_json_obj null_;
@@ -328,13 +324,17 @@ win:
     return cs_number_create(val);
 }
 
+static inline cs_json_obj *do_parse_(cs_json_parser *);
+
 static cs_json_obj *array_(cs_json_parser *p) {
     cs_json_obj *array = cs_array_create();
-    if (array == NULL)
+    if (array == NULL) {
+        p->error = ERR_NO_MEM;
         return NULL;
+    }
     
     do {    
-        cs_json_obj *obj = cs_json_parse(p);
+        cs_json_obj *obj = do_parse_(p);
         if (obj == NULL) {
             if (p->current == TOK_RSQUARE) // [ ]
                 return array;
@@ -361,9 +361,11 @@ fail:
 
 static cs_json_obj *object_(cs_json_parser *p) {
     cs_json_obj *object = cs_object_create();
-    if (object == NULL)
+    if (object == NULL) {
+        p->error = ERR_NO_MEM;
         return NULL;
-        
+    }
+    
     do {
         // try to match first double quote
         if (get_tok_(p) != TOK_STRING) {
@@ -373,7 +375,7 @@ static cs_json_obj *object_(cs_json_parser *p) {
             goto fail;
         }
 
-        char *key = string_raw_(p);
+        char *key = string_(p);
         if (key == NULL) {
             goto fail;
         }
@@ -384,7 +386,7 @@ static cs_json_obj *object_(cs_json_parser *p) {
             goto fail;
         }
         
-        cs_json_obj *val = cs_json_parse(p);
+        cs_json_obj *val = do_parse_(p);
         if (val == NULL) {
             if (p->error == ERR_NONE)
                 p->error = ERR_EXPECTED_VALUE;
@@ -407,17 +409,21 @@ fail:
     return NULL;
 }
 
-cs_json_obj *cs_json_parse(cs_json_parser *p) {
+static inline cs_json_obj *do_parse_(cs_json_parser *p) {
     switch (get_tok_(p)) {
         case TOK_LCURLY:  return object_(p);
         case TOK_LSQUARE: return array_(p);
-        case TOK_STRING:  return string_(p);
         case TOK_NUMBER:  return number_(p);
+        case TOK_STRING:  return cs_string_create(string_(p), 1);(p);
         case TOK_TRUE:    return cs_bool_create(1);
         case TOK_FALSE:   return cs_bool_create(0);
         case TOK_NULL:    return &null_;
     }
-    return NULL;
+    return NULL;  
+}
+
+cs_json_obj *cs_json_parse(cs_json_parser *p) {
+    return do_parse_(p);
 }
 
 cs_json_parser *cs_parser_create_fn(const char *file) {
