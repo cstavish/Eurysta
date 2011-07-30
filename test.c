@@ -17,7 +17,7 @@ int main(int argc, const char **argv) {
 
     if (root != NULL) {
         // warning: terminal will be bombed if the root object is big
-        cs_object_print(root);
+        cs_object_print(root, stdout);
         
         printf("\n\nNumber of tweets: %zu\n", cs_array_get_len(root));
         

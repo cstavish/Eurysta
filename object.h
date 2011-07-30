@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 
 enum obj_type {
     TYPE_OBJECT,
@@ -44,7 +45,7 @@ struct cs_json_obj {
 
 typedef struct cs_json_obj cs_json_obj;
 
-void cs_object_print(cs_json_obj *obj);
+void cs_object_print(cs_json_obj *obj, FILE *f);
 
 cs_json_obj *cs_object_create(void);
 

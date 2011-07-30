@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // global "null" object
 cs_json_obj null_ = { TYPE_NULL, NULL };
 
-static void spec_destructor_(const char *k, void *v) {
+static inline void spec_destructor_(const char *k, void *v) {
     cs_json_obj *obj = (cs_json_obj *)v;
     switch (obj->type) {
         case TYPE_OBJECT:
@@ -58,57 +58,53 @@ static void generic_destructor_(void *v) {
     spec_destructor_(NULL, v);
 }
 
-static void print_hash_(cs_hash_tab *t, const char *k, void *v, size_t c) {
-    if (c == 0)
-        printf(" "); // insert space after {
-    printf("\"%s\": ", k);
-    cs_object_print((cs_json_obj *)v);
-    if (c < t->count - 1)
-        printf(", ");
-    else if (t->count - c == 1)
-        printf(" "); // insert space before }
+static inline void print_hash_(cs_hash_tab *t, FILE *f) {
+    fprintf(f, "{");
+    for (size_t i = 0, c = 0; i < t->size, c < t->count; i++) {
+        for (cs_knode *n = t->buckets[i]; n != NULL; n = n->next) {
+            fprintf(f, "\"%s\":", n->key);
+            cs_object_print(n->val, f);
+            if (t->count - c++ > 1)
+                fprintf(f, ",");
+        }
+    }
+    fprintf(f, "}");
 }
 
-static void print_array_(cs_dll *list) {
+static inline void print_array_(cs_dll *list, FILE *f) {
+    fprintf(f, "[");
     cs_dll_node *n = list->start;
     for (int i = 0; n != NULL; i++, n = n->next) {
-        if (i == 0)
-            printf(" ");
-        cs_object_print((cs_json_obj *)n->data);
+        cs_object_print((cs_json_obj *)n->data, f);
         if (i < list->size - 1)
-            printf(", ");
-        else if (list->size - i == 1)
-            printf(" ");
+            fprintf(f, ",");
     }
+    fprintf(f, "]");
 }
 
 void cs_object_destroy(cs_json_obj *o) {
     generic_destructor_(o);
 }
 
-void cs_object_print(cs_json_obj *obj) {
+void cs_object_print(cs_json_obj *obj, FILE *f) {
     switch (obj->type) {
         case TYPE_STRING:
-            printf("\"%s\"", (char *)obj->data);
+            fprintf(f, "\"%s\"", (char *)obj->data);
             break;
         case TYPE_NUMBER:
-            printf("%g", *(double *)obj->data);
+            fprintf(f, "%g", *(double *)obj->data);
             break;
         case TYPE_OBJECT:
-            printf("{");
-            cs_hash_iterate((cs_hash_tab *)obj->data, print_hash_);
-            printf("}");
+            print_hash_((cs_hash_tab *)obj->data, f);
             break;
         case TYPE_ARRAY:
-            printf("[");
-            print_array_((cs_dll *)obj->data);
-            printf("]");
+            print_array_((cs_dll *)obj->data, f);
             break;
         case TYPE_NULL:
-            printf("null");
+            fprintf(f, "null");
             break;
         case TYPE_BOOL:
-            printf("%s", ((uintptr_t)obj->data & 1) ? "true" : "false");
+            fprintf(f, "%s", ((uintptr_t)obj->data & 1) ? "true" : "false");
     }
 }
 
