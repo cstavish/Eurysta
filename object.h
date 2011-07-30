@@ -25,6 +25,9 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef OBJECT_H
+#define OBJECT_H
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -75,3 +78,5 @@ uint8_t cs_object_set_val(cs_json_obj *object, const char *key, cs_json_obj *val
 cs_json_obj *cs_array_get_val(cs_json_obj *array, uint32_t index);
 uint8_t cs_array_set_val(cs_json_obj *array, uint32_t index, cs_json_obj *value);
 size_t cs_array_get_len(cs_json_obj *array);
+
+#endif

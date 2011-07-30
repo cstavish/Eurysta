@@ -25,6 +25,9 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef PARSER_H
+#define PARSER_H
+
 #include <sys/types.h>
 
 enum src_type {
@@ -97,3 +100,5 @@ cs_json_obj *cs_json_parse(cs_json_parser *p);
 
 const char *cs_strtype(enum obj_type t);
 const char *cs_strerror(enum err_type e);
+
+#endif

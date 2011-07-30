@@ -25,7 +25,12 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef EURYSTA_H
+#define EURYSTA_H
+
 #include "object.h"
 #include "parser.h"
 #include "c_data_structs/cs_hash_tab.h"
 #include "c_data_structs/cs_linked_list.h"
+
+#endif
