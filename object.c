@@ -58,28 +58,39 @@ static void generic_destructor_(void *v) {
     spec_destructor_(NULL, v);
 }
 
+static inline void print_string_(const char *s, FILE *f) {
+    putc('"', f);
+    while (*s) {
+        if (*s == '"')
+            putc('\\', f);
+        putc(*s++, f);
+    }
+    putc('"', f);
+}
+
 static inline void print_hash_(cs_hash_tab *t, FILE *f) {
-    fprintf(f, "{");
+    putc('{', f);
     for (size_t i = 0, c = 0; i < t->size, c < t->count; i++) {
         for (cs_knode *n = t->buckets[i]; n != NULL; n = n->next) {
-            fprintf(f, "\"%s\":", n->key);
+            print_string_(n->key, f);
+            putc(':', f);
             cs_object_print(n->val, f);
             if (t->count - c++ > 1)
-                fprintf(f, ",");
+                putc(',', f);
         }
     }
-    fprintf(f, "}");
+    putc('}', f);
 }
 
 static inline void print_array_(cs_dll *list, FILE *f) {
-    fprintf(f, "[");
+    putc('[', f);
     cs_dll_node *n = list->start;
     for (int i = 0; n != NULL; i++, n = n->next) {
         cs_object_print((cs_json_obj *)n->data, f);
         if (i < list->size - 1)
-            fprintf(f, ",");
+            putc(',', f);
     }
-    fprintf(f, "]");
+    putc(']', f);
 }
 
 void cs_object_destroy(cs_json_obj *o) {
@@ -89,7 +100,7 @@ void cs_object_destroy(cs_json_obj *o) {
 void cs_object_print(cs_json_obj *obj, FILE *f) {
     switch (obj->type) {
         case TYPE_STRING:
-            fprintf(f, "\"%s\"", (char *)obj->data);
+            print_string_((const char *)obj->data, f);
             break;
         case TYPE_NUMBER:
             fprintf(f, "%g", *(double *)obj->data);
