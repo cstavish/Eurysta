@@ -439,7 +439,7 @@ cs_json_parser *cs_parser_create_fmm(const char *file) {
         return NULL;
     
     int fd = -1;
-    if ((fd = open(file, O_RDWR)) > 0) {
+    if ((fd = open(file, O_RDONLY)) > 0) {
         struct stat s;
         if (fstat(fd, &s) != -1) {
             if ((p->source.string = mmap(NULL, s.st_size, PROT_READ, MAP_SHARED, fd, 0)) != MAP_FAILED) {
