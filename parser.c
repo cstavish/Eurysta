@@ -265,9 +265,9 @@ fail:
 
 win:
     buffer[len] = '\0';
-    char *final = malloc(len);
+    char *final = malloc(len + 1);
     if (final != NULL)
-        memcpy(final, buffer, len);
+        memcpy(final, buffer, len + 1);
     // free buffer unless it's on the stack
     if (buf_size != sizeof(buf))
         free(buffer);
