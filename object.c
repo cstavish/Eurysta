@@ -156,7 +156,7 @@ cs_json_obj *cs_bool_create(uint8_t val) {
         return NULL;
     
     obj->type = TYPE_BOOL;
-    obj->data = (void *)(uintptr_t)(0 | val & 1);
+    obj->data = (void *)(uintptr_t)(val & 1);
     
     return obj;
 }
