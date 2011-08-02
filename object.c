@@ -31,24 +31,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "eurysta.h"
 
 // global "null" object
-cs_json_obj null_ = { TYPE_NULL, NULL };
+cs_json_obj null_ = { OBJ_TYPE_NULL, NULL };
 
 static inline void spec_destructor_(const char *k, void *v) {
     cs_json_obj *obj = (cs_json_obj *)v;
     switch (obj->type) {
-        case TYPE_OBJECT:
+        case OBJ_TYPE_OBJECT:
             cs_hash_destroy(obj->data);
             break;
-        case TYPE_ARRAY:
+        case OBJ_TYPE_ARRAY:
             cs_dll_destroy(obj->data);
             break;
-        case TYPE_STRING:
+        case OBJ_TYPE_STRING:
             free(obj->data);
             break;
-        case TYPE_NUMBER:
+        case OBJ_TYPE_NUMBER:
             free(obj->data);
             break;
-        case TYPE_NULL:
+        case OBJ_TYPE_NULL:
             return;
     }
     free(obj);
@@ -99,22 +99,22 @@ void cs_object_destroy(cs_json_obj *o) {
 
 void cs_object_print(cs_json_obj *obj, FILE *f) {
     switch (obj->type) {
-        case TYPE_STRING:
+        case OBJ_TYPE_STRING:
             print_string_((const char *)obj->data, f);
             break;
-        case TYPE_NUMBER:
+        case OBJ_TYPE_NUMBER:
             fprintf(f, "%g", *(double *)obj->data);
             break;
-        case TYPE_OBJECT:
+        case OBJ_TYPE_OBJECT:
             print_hash_((cs_hash_tab *)obj->data, f);
             break;
-        case TYPE_ARRAY:
+        case OBJ_TYPE_ARRAY:
             print_array_((cs_dll *)obj->data, f);
             break;
-        case TYPE_NULL:
+        case OBJ_TYPE_NULL:
             fprintf(f, "null");
             break;
-        case TYPE_BOOL:
+        case OBJ_TYPE_BOOL:
             fprintf(f, "%s", ((uintptr_t)obj->data & 1) ? "true" : "false");
     }
 }
@@ -124,7 +124,7 @@ cs_json_obj *cs_object_create(void) {
     if (obj == NULL)
         return NULL;
         
-    obj->type = TYPE_OBJECT;
+    obj->type = OBJ_TYPE_OBJECT;
     if ((obj->data = cs_hash_create_opt(32, 0.75f, 0.25f)) == NULL) {
         free(obj);
         return NULL;
@@ -141,7 +141,7 @@ cs_json_obj *cs_array_create(void) {
     if (obj == NULL)
         return NULL;
     
-    obj->type = TYPE_ARRAY;
+    obj->type = OBJ_TYPE_ARRAY;
     if ((obj->data = cs_dll_create(generic_destructor_, NULL)) == NULL) {
         free(obj);
         return NULL;
@@ -155,7 +155,7 @@ cs_json_obj *cs_bool_create(uint8_t val) {
     if (obj == NULL)
         return NULL;
     
-    obj->type = TYPE_BOOL;
+    obj->type = OBJ_TYPE_BOOL;
     obj->data = (void *)(uintptr_t)(val & 1);
     
     return obj;
@@ -169,7 +169,7 @@ cs_json_obj *cs_string_create(char *val, uint8_t assign) {
     if (str == NULL)
         return NULL;
         
-    str->type = TYPE_STRING;
+    str->type = OBJ_TYPE_STRING;
     str->data = (assign) ? val : strdup(val);
     
     return str;
@@ -180,7 +180,7 @@ cs_json_obj *cs_number_create(double val) {
     if (num == NULL)
         return NULL;
     
-    num->type = TYPE_NUMBER;
+    num->type = OBJ_TYPE_NUMBER;
     if ((num->data = malloc(sizeof(double))) == NULL) {
         free(num);
         return NULL;
@@ -192,14 +192,14 @@ cs_json_obj *cs_number_create(double val) {
 }
 
 char *cs_string_get_val(cs_json_obj *string) {
-    if (string != NULL && string->type == TYPE_STRING) {
+    if (string != NULL && string->type == OBJ_TYPE_STRING) {
         return string->data;
     }
     return NULL;
 }
 
 uint8_t cs_string_set_val(cs_json_obj *string, const char *value) {
-    if (string != NULL && string->type == TYPE_STRING) {
+    if (string != NULL && string->type == OBJ_TYPE_STRING) {
         // FIXME: it's unsafe to assume the previous value was dynamically allocated
         free(string->data);
         string->data = strdup(value);
@@ -215,7 +215,7 @@ inline size_t cs_string_get_len(cs_json_obj *string) {
 double cs_number_get_val(cs_json_obj *number, uint8_t *success) {
     uint8_t s = 0;
     double v = 0;
-    if (number != NULL && number->type == TYPE_NUMBER) {
+    if (number != NULL && number->type == OBJ_TYPE_NUMBER) {
         s = 1;
         v = *(double *)number->data;
     }
@@ -225,7 +225,7 @@ double cs_number_get_val(cs_json_obj *number, uint8_t *success) {
 }
 
 uint8_t cs_number_set_val(cs_json_obj *number, double value) {
-    if (number != NULL && number->type == TYPE_NUMBER) {
+    if (number != NULL && number->type == OBJ_TYPE_NUMBER) {
         free(number->data);
         if ((number->data = malloc(sizeof(double))) != NULL) {
             *(double *)number->data = value;
@@ -247,7 +247,7 @@ uint8_t cs_bool_get_val(cs_json_obj *boolean, uint8_t *success) {
 }
 
 uint8_t cs_bool_set_val(cs_json_obj *boolean, uint8_t value) {
-    if (boolean != NULL && boolean->type == TYPE_BOOL) {
+    if (boolean != NULL && boolean->type == OBJ_TYPE_BOOL) {
         boolean->data = (void *)((uintptr_t)value & 1);
         return 1;
     }
@@ -255,14 +255,14 @@ uint8_t cs_bool_set_val(cs_json_obj *boolean, uint8_t value) {
 }
 
 cs_json_obj *cs_object_get_val(cs_json_obj *object, const char *key) {
-    if (object != NULL && key != NULL && object->type == TYPE_OBJECT) {
+    if (object != NULL && key != NULL && object->type == OBJ_TYPE_OBJECT) {
         return cs_hash_get((cs_hash_tab *)object->data, key);
     }
     return NULL;
 }
 
 uint8_t cs_object_set_val(cs_json_obj *object, const char *key, cs_json_obj *value) {
-    if (object != NULL && object->type == TYPE_OBJECT) {
+    if (object != NULL && object->type == OBJ_TYPE_OBJECT) {
         if (object->data != NULL) {
             cs_hash_set((cs_hash_tab *)object->data, key, value);
             return 1;
@@ -272,14 +272,14 @@ uint8_t cs_object_set_val(cs_json_obj *object, const char *key, cs_json_obj *val
 }
 
 cs_json_obj *cs_array_get_val(cs_json_obj *array, uint32_t index) {
-    if (array != NULL && array->type == TYPE_ARRAY) {
+    if (array != NULL && array->type == OBJ_TYPE_ARRAY) {
         return cs_dll_get((cs_dll *)array->data, index);
     }
     return NULL;
 }
 
 uint8_t cs_array_set_val(cs_json_obj *array, uint32_t index, cs_json_obj *value) {
-    if (array != NULL && array->type == TYPE_ARRAY) {
+    if (array != NULL && array->type == OBJ_TYPE_ARRAY) {
         if (array->data) {
             return cs_dll_set((cs_dll *)array->data, value, index);
         }

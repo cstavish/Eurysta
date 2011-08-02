@@ -33,12 +33,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 
 enum obj_type {
-    TYPE_OBJECT,
-    TYPE_ARRAY,
-    TYPE_STRING,
-    TYPE_NUMBER,
-    TYPE_BOOL,
-    TYPE_NULL
+    OBJ_TYPE_OBJECT,
+    OBJ_TYPE_ARRAY,
+    OBJ_TYPE_STRING,
+    OBJ_TYPE_NUMBER,
+    OBJ_TYPE_BOOL,
+    OBJ_TYPE_NULL
 };
 
 struct cs_json_obj {
