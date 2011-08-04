@@ -24,6 +24,8 @@ int main(int argc, const char **argv) {
         // tweets[5].text
         printf("Text of 6th tweet: \"%s\"\n", cs_string_get_val(cs_object_get_val(cs_array_get_val(root, 5), "text")));
         
+        cs_array_del_val(root, 5);
+        
         cs_object_destroy(root);
     }
     else {

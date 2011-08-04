@@ -74,9 +74,12 @@ uint8_t cs_bool_set_val(cs_json_obj *boolean, uint8_t value);
 
 cs_json_obj *cs_object_get_val(cs_json_obj *object, const char *key);
 uint8_t cs_object_set_val(cs_json_obj *object, const char *key, cs_json_obj *value);
+size_t cs_object_get_size(cs_json_obj *object);
+void cs_object_del_val(cs_json_obj *object, const char *key);
 
 cs_json_obj *cs_array_get_val(cs_json_obj *array, uint32_t index);
 uint8_t cs_array_set_val(cs_json_obj *array, uint32_t index, cs_json_obj *value);
 size_t cs_array_get_len(cs_json_obj *array);
+void cs_array_del_val(cs_json_obj *array, uint32_t index);
 
 #endif

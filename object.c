@@ -271,6 +271,18 @@ uint8_t cs_object_set_val(cs_json_obj *object, const char *key, cs_json_obj *val
     return 0;
 }
 
+inline size_t cs_object_get_size(cs_json_obj *object) {
+    return ((cs_hash_tab *)object)->count;
+}
+
+void cs_object_del_val(cs_json_obj *object, const char *key) {
+    if (object && object->type == OBJ_TYPE_OBJECT) {
+        cs_json_obj *o = cs_hash_del((cs_hash_tab *)object->data, key);
+        if (o)
+            cs_object_destroy(o);
+    }
+}
+
 cs_json_obj *cs_array_get_val(cs_json_obj *array, uint32_t index) {
     if (array != NULL && array->type == OBJ_TYPE_ARRAY) {
         return cs_dll_get((cs_dll *)array->data, index);
@@ -285,6 +297,14 @@ uint8_t cs_array_set_val(cs_json_obj *array, uint32_t index, cs_json_obj *value)
         }
     }
     return 0;
+}
+
+void cs_array_del_val(cs_json_obj *array, uint32_t index) {
+    if (array && array->type == OBJ_TYPE_ARRAY) {
+        cs_json_obj *o = cs_dll_del((cs_dll *)array->data, index);
+        if (o)
+            cs_object_destroy(o);
+    }
 }
 
 inline size_t cs_array_get_len(cs_json_obj *array) {
