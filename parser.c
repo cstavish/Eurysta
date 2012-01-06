@@ -208,7 +208,7 @@ static char *string_(cs_json_parser *p) {
                 }
                 // and beyond...
                 else {
-                    // prefix with '1110', indicating a 3 byte sequence, select the 4 most
+                    // prefix with '1110', indicating a 4 byte sequence, select the 4 most
                     //  significant bits of the char code, shift, etc.
                     buffer[len++] = 0xE0 | ((uni_code & 0xF000) >> 12);
                     
