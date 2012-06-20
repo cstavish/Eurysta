@@ -259,15 +259,16 @@ static char *string_(cs_json_parser *p) {
         }
     }
 
-fail:
-    free(buffer);
-    return NULL;
+    char *final = NULL;
 
+// Yes, I understand that gotos and labels are "bad" -- this works
 win:
-    buffer[len] = '\0';
-    char *final = malloc(len + 1);
+    buffer[len++] = '\0';
+    final = malloc(len);
     if (final != NULL)
-        memcpy(final, buffer, len + 1);
+        memcpy(final, buffer, len);
+
+fail:
     // free buffer unless it's on the stack
     if (buf_size != sizeof(buf))
         free(buffer);
